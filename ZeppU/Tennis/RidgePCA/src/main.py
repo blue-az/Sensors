@@ -30,7 +30,6 @@ from sklearn.metrics import accuracy_score
 # input data path
 file_path = "/home/blueaz/Downloads/SensorDownload/May2024/ztennis.db" 
 
-
 warnings.simplefilter("ignore", UserWarning)
 
 df = wrangle.wrangle(file_path)
@@ -51,8 +50,6 @@ session = ['l_id' , 'swing_type', 'swing_side', 'hand_type',
 serves = ['l_id', 'impact_vel', 'ball_vel', 'spin', 'upswing_time',
          'impact_time', 'service_court']
 
-
-
 df_session = df[session]
 df_serves = df[serves]
 
@@ -61,22 +58,33 @@ sensor = [ 'dbg_acc_1', 'dbg_acc_2', 'dbg_acc_3', 'dbg_gyro_1',
        'dbg_sum_gx', 'dbg_sum_gy', 'dbg_sv_ax', 'dbg_sv_ay', 'dbg_max_ax',
           'dbg_max_ay', 'dbg_min_az', 'dbg_max_az' ]
 
-calc = [ 'backswing_time', 'power', 'ball_spin',
-        'impact_position_x', 'impact_position_y',
-       'racket_speed', 'impact_region']
+calc = [ 'backswing_time', 'power', 'ball_spin', 'impact_position_x',
+       'impact_position_y', 'racket_speed', 'impact_region']
+
+all_signals = sensor + calc
 
 df_session_sensor = df_session[sensor]
 df_session_calc = df_session[calc]
+df_total = df_session[all_signals]
 
+# Calculate variance
+top_ten_var = df_total.var().sort_values().tail(15)
+top_ten_var
+# Create horizontal bar chart of `top_ten_trim_var`
+fig = px.bar(
+    x=top_ten_var,
+    y=top_ten_var.index,
+    title="High Variance Features"
+)
 
+fig.update_layout(xaxis_title="Trimmed Var", yaxis_title="Feat")
 #Split data
-X_data = df_session_sensor
+X_data = df_total
 target = "swing_side"
 y_data = df[target]
 X_train, X_test, y_train, y_test = train_test_split(
     X_data, y_data, test_size=0.2, random_state=42
 )
-
 
 y_mean = y_train.mean()
 y_pred_baseline = [y_mean] * len(y_train)
@@ -122,17 +130,14 @@ plt.title("importance vs feature")
 # RMSE
 print(np.sqrt(metrics.mean_squared_error(y_test, y_pred_test)))
 # Build bar chart
-# feat_imp.sort_values(key=abs).tail(15).plot(kind="barh")
+# top15 = feat_imp.sort_values(key=abs).tail(15).plot(kind="barh")
+top15 = feat_imp.sort_values(key=abs).tail(15).index.to_list()
 top5 = feat_imp.sort_values(key=abs).tail(5).index.to_list()
 
-# fig = px.bar(
-#     x=top5,
-#     y=top5.index,
-#     title="top 5 var features"
-# )
-# fig.show()
+fig.update_layout(xaxis_title="Trimmed Var", yaxis_title="Feat")
 
-X = df[top5]
+X = df_total
+# X = df_total[top15]
 n_clusters = range(2,13)
 inertia_errors = []
 silhouette_scores = []
@@ -158,7 +163,7 @@ fig.update_layout(xaxis_title="clust", yaxis_title="ss")
 
 final_model = make_pipeline(
     StandardScaler(),
-    KMeans(n_clusters=2, random_state=42)
+    KMeans(n_clusters=4, random_state=42)
 )
 final_model.fit(X)
 
@@ -167,13 +172,13 @@ xgb = X.groupby(labels).mean()
 xgb
 
 # Create side-by-side bar chart of `xgb`
-# fig = px.bar(
-#     xgb,
-#     barmode="group",
-#     title="MEAN by cluster"
-# )
-# 
-# fig.update_layout(xaxis_title = "Cluster", yaxis_title="$")
+fig = px.bar(
+    xgb,
+    barmode="group",
+    title="MEAN by cluster"
+)
+
+fig.update_layout(xaxis_title = "Cluster", yaxis_title="$")
 # Instantiate transformer
 pca = PCA(n_components=2, random_state=42)
 
@@ -195,4 +200,4 @@ fig = px.scatter(
 )
 fig.update_layout(xaxis_title="PC1", yaxis_title="PC2")
 
-print("hello")
+print("complete")
